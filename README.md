@@ -56,12 +56,17 @@ Select the cells with text and COPY PASTE this file to Text Wrangler -- a plain 
 perl make-bed.pl < nocarriage-file.txt > myeloid-genelist_11-5-21.bed
 
 Commands Run:  
-216  perl refseq-composite-gene-size-across-transcripts.pl -UniqGene genelist-uniq.txt -ucsc gene-list-myeloid-somatic.txt -header YES 
-   268  perl make-bed.pl < merged-myeloid.txt 
-  270  perl make-bed.pl < merged-myeloid.txt > gene-list-myeloid-somatic.txt
-  294  grep -v fix gene-list-myeloid-somatic.txt > nofix-gene-list-myeloid-somatic.txt
-  300  perl refseq-composite-gene-size-across-transcripts.pl -UniqGene genelist-uniq.txt -ucsc nofix-gene-list-myeloid-somatic.txt -header YES > outputgenelist.txt
-  354  perl make-bed.pl < myeloid-gene-v3-noreturn.txt > Final-Myeloid-Genes-V3.bed
+perl refseq-composite-gene-size-across-transcripts.pl -UniqGene genelist-uniq.txt -ucsc gene-list-myeloid-somatic.txt -header YES 
+
+perl make-bed.pl < merged-myeloid.txt 
+
+perl make-bed.pl < merged-myeloid.txt > gene-list-myeloid-somatic.txt
+
+grep -v fix gene-list-myeloid-somatic.txt > nofix-gene-list-myeloid-somatic.txt
+
+perl refseq-composite-gene-size-across-transcripts.pl -UniqGene genelist-uniq.txt -ucsc nofix-gene-list-myeloid-somatic.txt -header YES > outputgenelist.txt
+
+perl make-bed.pl < myeloid-gene-v3-noreturn.txt > Final-Myeloid-Genes-V3.bed
 
 
 
