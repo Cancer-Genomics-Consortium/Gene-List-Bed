@@ -1,7 +1,7 @@
 
 # BED File Creation Instructions
 
-This guide outlines the steps to create a BED file using gene information and the UCSC Genome Table Browser, followed by processing in R using the `REMP` package.
+This guide outlines the steps to create a BED file using gene information and the UCSC Genome Table Browser.
 
 ---
 
