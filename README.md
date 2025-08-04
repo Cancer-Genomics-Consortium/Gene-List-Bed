@@ -1,72 +1,153 @@
-# gene-list
-BED file creation from a gene list derived from the UCSC table browser
 
-1. get unique list of gene names. 
- 	Go to the excel file and copy/paste the gene names from the column
- 	sort and unique to double check it is unique. 
- 	put into a text file. 
- 2. Put into UCSC Genome Table Browser to get locations 
- 	Go to Tools 
- 	Go to Table Browser 
- 	Select NCBI Refseq for the track 
- 	Under Define region of interest
- 	Select genome
- 	Select "upload list" next to identifiers (under Define region of interest). 
- 	For output choose the dropdown and choose "selected fields from primary and related tables" 
- 	Click Get output
- 	Select name chrom strand txstart txend and Name2 
- 	Click Get Output 
- 	Should get a list of the genes with the information selected, the transcript and the "human readable" name (Name2). 
- 	Copy paste to a text file. 
- 	REMOVE ANY CHROMOSOMES THAT SAY "FIX" FROM THE FILE BEFORE PROCEEDING. 
- 	
- 	grep -v fix 1-12-22_gene-list-myeloid-somatic.txt > nofix_1-12-22_gene-list-myeloid-somatic.txt 
+# BED File Creation Instructions
 
- 	
- 3. using the file of unique gene names and the file output from UCSC, run this program 
- 	
- 	perl refseq-composite-gene-size-across-transcripts.pl -UniqGene genelist-myeloid_1-12-22.txt -ucsc nofix_1-12-22_gene-list-myeloid-somatic.txt > outfile.txt
- 	 
-It will make a composite reference sequence combining the lowest start and highest stop in the UCSC file and it will combine all the transcript names into one long name. 
+This guide outlines the steps to create a BED file using gene information and the UCSC Genome Table Browser, followed by processing in R using the `REMP` package.
 
-Double check you have 113 lines, the same number of lines as the unique gene name file 
- 	
- 4. Go to the Excel file, select the cell next to the end of the first line on the right side (ABL1 here). 
- Choose Data at the top, then Get External data, and select the outfile.txt file 
- to open, choose Delimited and select tab delimited. 
- It should import all the data in the rows to the excel file. 
- 
- Check that there are the exact same lines in the outfile.txt import as the excel file. 
- Check that gene names match on each row 
- 
- 5. CLEAN CARRIAGE RETURNS FROM THE EXCEL FILE. 
-Select any column with carriage returns, make a blank column next to it and use the formula 
- =SUBSTITUTE(G5,CHAR(13),"\."). Copy this formula down the rows. 
- When the column shows substituted carriage return for periods, then select the new column and choose copy and go to Edit, go to "paste special" and choose value  
-This will create a column where the carriage returns are changed into periods. 
-Delete the columns with carriage returns. 
+---
 
-Columns G, H, and I need carriage returns stripped. 
+## 🧬 Step 1: Generate List of Unique Gene Names
 
-Select the cells with text and COPY PASTE this file to Text Wrangler -- a plain text file. Give the file a name. 
+1. Open the Excel file with gene data.
+2. Copy the **Gene Names** column.
+3. Use Excel’s **Remove Duplicates** feature.
+4. Copy and paste the unique list into a **.txt file** and save it.
 
+---
 
-6. Run this program to make the bed file. This program can include more or less columns as wanted and will separate columns with a star 
+## 🌐 Step 2: Use UCSC Genome Table Browser
 
-perl make-bed.pl < nocarriage-file.txt > myeloid-genelist_11-5-21.bed
+1. Go to **Tools → Table Browser**:  
+   [https://genome.ucsc.edu/cgi-bin/hgTables](https://genome.ucsc.edu/cgi-bin/hgTables)
+2. Select:
+   - **Track**: `NCBI Refseq`
+   - **Region**: `Genome`
+3. Under **Identifiers**, click `Upload list` and upload the `.txt` file created in Step 1.
+4. For **output**, choose:  
+   `selected fields from primary and related tables`
+5. Click **Get output**, then select the following fields:
+   - `name`
+   - `chrom`
+   - `strand`
+   - `txStart`
+   - `txEnd`
+   - `name2`
+6. Click **Get Output** again.
+7. Save the resulting gene list to a `.txt` file.
+8. **Important:** Remove any chromosomes with `"fix"` in their names from the file.
 
-Commands Run:  
-perl refseq-composite-gene-size-across-transcripts.pl -UniqGene genelist-uniq.txt -ucsc gene-list-myeloid-somatic.txt -header YES 
+---
 
-perl make-bed.pl < merged-myeloid.txt 
+## 🧪 Step 3: Setup R Environment
 
-perl make-bed.pl < merged-myeloid.txt > gene-list-myeloid-somatic.txt
+> You may need to download and install [R](https://cran.r-project.org/) and [RStudio](https://www.rstudio.com/).
 
-grep -v fix gene-list-myeloid-somatic.txt > nofix-gene-list-myeloid-somatic.txt
+### Install Required Packages
 
-perl refseq-composite-gene-size-across-transcripts.pl -UniqGene genelist-uniq.txt -ucsc nofix-gene-list-myeloid-somatic.txt -header YES > outputgenelist.txt
+```r
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
 
-perl make-bed.pl < myeloid-gene-v3-noreturn.txt > Final-Myeloid-Genes-V3.bed
+BiocManager::install("REMP")
+```
 
+---
 
+## 📂 Step 4: Set Working Directory and Load Files
 
+1. Place the following in the same working directory:
+   - Gene info Excel saved as `gene_info.txt`
+   - UCSC output file (from Step 2)
+
+2. Format your `gene_info.txt` with **exact column headers**:
+   ```
+   Genes	Significance.Level	Subtype	Type.of.Genomic.Abnormalities	Functional.Mechanism
+   ```
+
+### Example R Code:
+
+```r
+setwd("C:/YOUR FILE PATH HERE")
+
+geneinfo <- read.delim("gene_info.txt", header = TRUE)
+head(geneinfo)
+
+genenames <- unique(geneinfo$Genes)
+length(genenames)
+
+geneinfo$Annotation <- paste0(
+  geneinfo$Genes, "",
+  geneinfo$Significance.Level, "",
+  geneinfo$Subtype, "",
+  geneinfo$Type.of.Genomic.Abnormalities, "",
+  geneinfo$Functional.Mechanism
+)
+```
+
+---
+
+## 🧭 Step 5: Extract Genomic Coordinates
+
+```r
+chrloc <- function(x, y){  # choose either "hg19" or "hg38"
+    library(REMP)
+    refgene <- fetchRefSeqGene(annotation.source = "UCSC", genome = y, mainOnly=TRUE, verbose = TRUE)
+    genetable <- NULL
+    missing_genes <- c()
+
+    for (i in 1:length(x)){
+        matches <- which(refgene$GeneSymbol == x[i])
+        if (length(matches) > 0) {
+            generanges <- range(refgene[matches])
+            generanges <- as.data.frame(generanges)
+            generanges$name <- x[i]
+            genetable <- rbind(genetable, generanges)
+        } else {
+            message(paste("Gene not found in reference:", x[i]))
+            missing_genes <- c(missing_genes, x[i])
+        }
+    }
+    write.table(missing_genes, "missing_genes.txt", quote = FALSE, row.names = FALSE, col.names = FALSE)
+    return(genetable)
+}
+```
+
+### Run with Genome Build
+
+```r
+# For hg19
+geneloc.hg19 <- chrloc(genenames, "hg19")
+
+# For hg38
+geneloc.hg38 <- chrloc(genenames, "hg38")
+```
+
+---
+
+## 🧷 Step 6: Annotate Gene Table
+
+```r
+# For hg19
+geneloc.hg19$Annotation <- geneinfo$Annotation[match(geneloc.hg19$name, geneinfo$Genes)]
+head(geneloc.hg19)
+
+# For hg38
+geneloc.hg38$Annotation <- geneinfo$Annotation[match(geneloc.hg38$name, geneinfo$Genes)]
+head(geneloc.hg38)
+```
+
+---
+
+## 🧾 Step 7: Export BED File
+
+```r
+write.table(
+    geneloc.hg19[, c("seqnames", "start", "end", "Annotation")],
+    "GENELISTNAME.bed",
+    quote = FALSE,
+    sep = "	",
+    row.names = FALSE,
+    col.names = FALSE
+)
+```
+
+> Replace `"GENELISTNAME"` with an appropriate filename for your BED file.
